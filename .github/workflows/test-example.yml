@@ -1,0 +1,74 @@
+name: Test Example
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-example:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Miniconda
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        activate-environment: mtr-analysis
+        environment-file: environment.yml
+        python-version: 3.11
+        auto-activate-base: false
+        miniforge-variant: Mambaforge
+        use-mamba: true
+    
+    - name: Install package
+      shell: bash -el {0}
+      run: |
+        python -m pip install -e .
+    
+    - name: Verify installation
+      shell: bash -el {0}
+      run: |
+        mtr-analysis --help
+    
+    - name: Run RNA-MAP example
+      shell: bash -el {0}
+      working-directory: example
+      run: |
+        mtr-analysis run-rna-map data.csv
+    
+    - name: Get mutation fractions
+      shell: bash -el {0}
+      working-directory: example
+      run: |
+        mtr-analysis get-mutation-fractions
+    
+    - name: Check output files
+      shell: bash -el {0}
+      working-directory: example
+      run: |
+        ls -la data/
+        if [ -f "all_mut_fractions.csv" ]; then
+          echo "Successfully generated all_mut_fractions.csv"
+          head -n 10 all_mut_fractions.csv
+        else
+          echo "Error: all_mut_fractions.csv not found"
+          exit 1
+        fi
+    
+    - name: Upload results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: example-results
+        path: |
+          example/data/
+          example/all_mut_fractions.csv
+
