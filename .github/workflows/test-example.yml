@@ -71,7 +71,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: example-results
+        name: example-results-${{ matrix.os }}
         path: |
           example/data/
           example/all_mut_fractions.csv

@@ -1,6 +1,7 @@
 # mtr_analysis
 
-[![PYPI status]( https://badge.fury.io/py/mtr_analysis.png)](http://badge.fury.io/py/mtr_analysis)[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Test Example](https://github.com/jyesselm/mtr_analysis/actions/workflows/test-example.yml/badge.svg)](https://github.com/jyesselm/mtr_analysis/actions/workflows/test-example.yml)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 some simple analysis scripts for processing mtr ribozyme data
 
