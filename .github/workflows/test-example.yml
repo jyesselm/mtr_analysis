@@ -18,16 +18,20 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Setup Miniconda
-      uses: conda-incubator/setup-miniconda@v3
+    - name: Setup Micromamba
+      uses: mamba-org/setup-micromamba@v2
       with:
-        activate-environment: mtr-analysis
         environment-file: environment.yml
-        python-version: 3.11
-        auto-activate-base: false
-        miniforge-variant: Mambaforge
-        use-mamba: true
-    
+        environment-name: mtr-analysis
+        cache-environment: true
+        cache-downloads: true
+        # Ensure conda-forge/bioconda priority and fast solver
+        create-args: >-
+          --channel conda-forge
+          --channel bioconda
+          --strict-channel-priority
+          python=3.11
+
     - name: Install package
       shell: bash -el {0}
       run: |
