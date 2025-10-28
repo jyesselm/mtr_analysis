@@ -1,3 +1,4 @@
+from contextlib import ExitStack
 import pandas as pd
 import click
 import os
@@ -8,6 +9,41 @@ import matplotlib.pyplot as plt
 import re
 import numpy as np
 from scipy.optimize import curve_fit
+
+from importlib.resources import files, as_file
+from pathlib import Path
+import subprocess
+
+
+def run_rna_map_for_construct(barcode_seq: str):
+    with ExitStack() as stack:
+        params = stack.enter_context(
+            as_file(files("mtr_analysis.data").joinpath("params.yml"))
+        )
+        dotb = stack.enter_context(
+            as_file(files("mtr_analysis.data").joinpath("C01HP.csv"))
+        )
+        fa = stack.enter_context(
+            as_file(files("mtr_analysis.data").joinpath("C01HP.fasta"))
+        )
+
+        fq1 = Path(f"demultiplexed/{barcode_seq}/test_R2.fastq.gz")
+        fq2 = Path(f"demultiplexed/{barcode_seq}/test_R1.fastq.gz")
+
+        cmd = [
+            "rna-map",
+            "-fa",
+            str(fa),
+            "-fq1",
+            str(fq1),
+            "-fq2",
+            str(fq2),
+            "--dot-bracket",
+            str(dotb),
+            "--param-file",
+            str(params),
+        ]
+        subprocess.run(cmd, check=True)
 
 
 def get_mins_fm_dir_name(dir_name):
@@ -139,8 +175,7 @@ def run_rna_map(data_csv):
     for i, row in df.iterrows():
         os.system("rm -rf log output input")
         os.makedirs(f"data/{row['construct']}", exist_ok=True)
-        cmd = f"rna-map -fa $SEQPATH/fastas/C01HP.fasta -fq1 demultiplexed/{row['barcode_seq']}/test_R2.fastq.gz -fq2 demultiplexed/{row['barcode_seq']}/test_R1.fastq.gz --dot-bracket $SEQPATH/rna/C01HP.csv --param-file params.yml"
-        os.system(cmd)
+        run_rna_map_for_construct(row["barcode_seq"])
         os.system(f"mv output data/{row['construct']}")
         df_summary = pd.read_csv(
             f"data/{row['construct']}/output/BitVector_Files/summary.csv"
@@ -154,6 +189,7 @@ def run_rna_map(data_csv):
                 "aligned": sum_row["aligned"],
             }
         )
+        break
     df_sum = pd.DataFrame(data)
     print(df_sum)
 
@@ -182,8 +218,8 @@ def get_mutation_fractions():
 
 
 @cli.command()
-@cli.option("--min-info-count", type=int, default=1000)
-@cli.option("--plot", is_flag=True)
+@click.option("--min-info-count", type=int, default=1000)
+@click.option("--plot", is_flag=True)
 def fit_mut_fractions(min_info_count, plot):
     os.makedirs("plots", exist_ok=True)
     df = pd.read_csv("all_mut_fractions.csv")

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mtr_analysis"
+version = "0.1.0"
+description = "some simple analysis scripts for processing mtr ribozyme data"
+readme = "README.md"
+authors = [{ name = "Joe Yesselman", email = "jyesselm@unl.edu" }]
+requires-python = ">=3.9"
+dependencies = [
+  "click",
+  "matplotlib",
+  "numpy",
+  "pandas",
+  "scipy" 
+]
+
+[project.scripts]
+mtr-analysis = "mtr_analysis.cli:cli"
+
+[tool.setuptools]
+packages = { find = { where = ["."] } }
+
+[tool.setuptools.package-data]
+mtr_analysis = ["data/*"]

@@ -11,7 +11,12 @@ To install mtr_analysis
 ```shell
 git clone https://github.com/jyesselm/mtr_analysis
 cd mtr_analysis
+conda env create -f environment.yml
+conda activate mtr-analysis
 python -m pip install -e .
+
+# can test commands in example directory
+
 ```
 ## How to use 
 
@@ -19,7 +24,7 @@ python -m pip install -e .
 This is the longest step will take a while to run > 1 hour.
 ```shell 
 # download the demultiplexed data and data.csv from $NRDSTOR/run_name 
-python mtr_analysis/cli.py run-rna-map data.csv
+mtr-analysis run-rna-map data.csv
 # expected output:
 
                 construct  barcode_seq  time
@@ -40,7 +45,7 @@ mtr1_mut_lib_t1440min_II_ CTAGCAATGTGA  1440
 ```
 ### get the mutation fractions for each construct
 ```shell
-python mtr_analysis/cli.py get-mutation-fractions
+mtr-analysis get-mutation-fractions
 # this currently doesnt have any output but will create the mut_fractions.csv file in each construct directory 
 # it will also create the all_mut_fractions.csv file in the current directory which 
 
@@ -53,6 +58,6 @@ It will create the mut_kinetics.csv file in the current directory which will hav
 
 It will also create the plots/mut.png file in the current directory which will have the plot of the mutation fractions and the fit.
 ```shell
-python mtr_analysis/cli.py fit-mut-fractions
+mtr-analysis fit-mut-fractions
 ```
 
