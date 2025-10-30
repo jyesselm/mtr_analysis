@@ -189,7 +189,6 @@ def run_rna_map(data_csv):
                 "aligned": sum_row["aligned"],
             }
         )
-        break
     df_sum = pd.DataFrame(data)
     print(df_sum)
 
