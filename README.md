@@ -24,6 +24,98 @@ There are two ways to run the analysis pipeline:
 
 ---
 
+## Configuration
+
+The pipeline uses a YAML configuration file to manage all settings. This is the recommended way to configure your analysis.
+
+### Quick Start
+
+```shell
+# Generate an example config file
+mtr-analysis config init --output config.yml
+
+# Edit config.yml to set your paths (must be absolute!)
+# Then validate your configuration
+mtr-analysis config validate config.yml
+```
+
+### Configuration File Structure
+
+```yaml
+# All paths must be absolute (start with / or ~)
+paths:
+  demultiplex_dir: /path/to/demultiplexed    # Required: FASTQ input directory
+  data_dir: /path/to/output/data              # Required: RNA-MaP output directory
+  output_dir: /path/to/output                 # Optional: aggregated results
+  plots_dir: /path/to/plots                   # Optional: kinetics plots
+
+fastq:
+  read1_pattern: test_R1.fastq.gz             # FASTQ filename pattern
+  read2_pattern: test_R2.fastq.gz
+
+sequence:
+  reference_sequence: GGAAGATCGAG...          # Reference RNA sequence
+  construct_filter: C01HP                      # Filter constructs by code
+  target_position: 86                          # 0-indexed mutation position
+
+mutation:
+  mutation_count_filter: 3                     # Max mutations per read
+  min_info_count: 1000                         # Min reads for fitting
+  min_data_points: 5                           # Min time points for fitting
+
+fitting:
+  n_bootstrap: 1000                            # Bootstrap iterations
+  random_seed: 42                              # For reproducibility
+
+output:
+  mutation_fractions_file: all_mut_fractions.csv
+  kinetics_file: mut_kinetics.csv
+  generate_plots: false
+
+slurm:
+  enabled: false                               # Enable for HPC clusters
+  time: "01:00:00"                             # Default time limit
+  memory: 4G                                   # Default memory
+  email: user@example.com                      # Job notifications
+  email_type: FAIL                             # NONE, BEGIN, END, FAIL, ALL
+```
+
+### Config Commands
+
+```shell
+# Generate example config with documentation
+mtr-analysis config init --output config.yml
+
+# Validate configuration (checks paths, options, etc.)
+mtr-analysis config validate config.yml
+
+# Display all parsed configuration values
+mtr-analysis config show config.yml
+```
+
+### Validation
+
+The config system validates:
+
+| Check | Description |
+|-------|-------------|
+| Absolute paths | All paths must be absolute (not relative) |
+| Path existence | `demultiplex_dir` must exist |
+| Valid nucleotides | Sequence must contain only A, C, G, T, U |
+| SLURM time format | Must be `HH:MM:SS` |
+| SLURM memory format | Must be number + unit (e.g., `4G`, `500M`) |
+| SLURM email type | Must be `NONE`, `BEGIN`, `END`, `FAIL`, or `ALL` |
+| Numeric bounds | Positive values where required |
+
+Example error messages:
+```
+Error: Path for 'paths.demultiplex_dir' must be absolute. Got relative path: 'data'
+Error: Invalid email_type 'INVALID'. Must be one of: ALL, BEGIN, END, FAIL, NONE
+Error: Invalid time '1hour'. Must be in format HH:MM:SS
+```
+
+---
+
 ## Local Execution
 
 ### Step 1: Run RNA-MaP to get bitvector files
@@ -198,6 +290,14 @@ squeue -u $USER
 | `process-single-dir` | Process mutations for a single directory |
 | `aggregate-mutations` | Aggregate mutation results from all directories |
 | `fit-mut-fractions` | Fit monoexponential curves to mutation data |
+
+### Config Commands
+
+| Command | Description |
+|---------|-------------|
+| `config init` | Generate an example configuration file |
+| `config validate` | Validate a configuration file |
+| `config show` | Display all parsed configuration values |
 
 ### SLURM Commands
 

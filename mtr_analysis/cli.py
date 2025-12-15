@@ -12,17 +12,18 @@ from pathlib import Path
 import click
 import pandas as pd
 
+from mtr_analysis.config import (
+    DEFAULT_SEQUENCE,
+    Config,
+    ConfigError,
+    create_example_config,
+    load_config,
+)
 from mtr_analysis.fitting import fit_monoexponential
 from mtr_analysis.mutations import compute_mutation_fractions, process_mutations
 from mtr_analysis.plotting import create_kinetics_plot, save_plot
 from mtr_analysis.rna_map import run_rna_map_for_barcode
 from mtr_analysis.time_parser import get_minutes_from_dir_name
-
-# Default sequence used in analysis
-DEFAULT_SEQUENCE = (
-    "GGAAGATCGAGTAGATCAAAGGAGGCTGACCGACCCCCCGAGCTTCGGCTCGGGGACAACTA"
-    "GACATACAGTATCTTCGGATACTGAGCCTCCACAAAGAAACAACAACAACAAC"
-)
 
 
 @click.group()
@@ -245,6 +246,155 @@ def _save_kinetics_results(results: list, output_file: str) -> None:
     df = df.sort_values(by="k", ascending=False)
     df.to_csv(output_file, index=False)
     print(f"Saved kinetics results to {output_file}")
+
+
+# =============================================================================
+# Config commands
+# =============================================================================
+
+
+@cli.group()
+def config() -> None:
+    """Configuration file management commands."""
+    pass
+
+
+@config.command("init")
+@click.option(
+    "--output",
+    "-o",
+    default="config.yml",
+    help="Output path for config file",
+)
+@click.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Overwrite existing config file",
+)
+def config_init(output: str, force: bool) -> None:
+    """
+    Generate an example configuration file.
+
+    Creates a well-documented YAML config file with all available options
+    and their default values.
+    """
+    output_path = Path(output)
+    if output_path.exists() and not force:
+        raise click.ClickException(
+            f"Config file already exists: {output_path}\n"
+            "Use --force to overwrite."
+        )
+    create_example_config(output_path)
+    print(f"Created example config file: {output_path}")
+    print("\nNext steps:")
+    print("  1. Edit the config file to set your paths (must be absolute)")
+    print("  2. Validate with: mtr-analysis config validate config.yml")
+
+
+@config.command("validate")
+@click.argument("config_file", type=click.Path(exists=True))
+def config_validate(config_file: str) -> None:
+    """
+    Validate a configuration file.
+
+    CONFIG_FILE: Path to the YAML configuration file.
+
+    Checks that:
+    - All required fields are present
+    - Paths are absolute
+    - Options have valid values
+    - Required directories exist
+    """
+    try:
+        cfg = load_config(config_file)
+        print(f"Configuration file is valid: {config_file}")
+        print("\nConfiguration summary:")
+        print(f"  Demultiplex dir: {cfg.paths.demultiplex_dir}")
+        print(f"  Data dir: {cfg.paths.data_dir}")
+        print(f"  Construct filter: {cfg.sequence.construct_filter}")
+        print(f"  Target position: {cfg.sequence.target_position}")
+        print(f"  Min info count: {cfg.mutation.min_info_count}")
+        print(f"  Generate plots: {cfg.output.generate_plots}")
+        print(f"  SLURM enabled: {cfg.slurm.enabled}")
+    except ConfigError as e:
+        raise click.ClickException(f"Configuration error: {e}")
+    except FileNotFoundError as e:
+        raise click.ClickException(str(e))
+
+
+@config.command("show")
+@click.argument("config_file", type=click.Path(exists=True))
+def config_show(config_file: str) -> None:
+    """
+    Show parsed configuration values.
+
+    CONFIG_FILE: Path to the YAML configuration file.
+
+    Displays all configuration values after parsing and validation.
+    """
+    try:
+        cfg = load_config(config_file)
+        _print_full_config(cfg)
+    except ConfigError as e:
+        raise click.ClickException(f"Configuration error: {e}")
+    except FileNotFoundError as e:
+        raise click.ClickException(str(e))
+
+
+def _print_full_config(cfg: Config) -> None:
+    """Print full configuration details."""
+    print("=" * 60)
+    print("MTR Analysis Configuration")
+    print("=" * 60)
+
+    print("\n[Paths]")
+    print(f"  demultiplex_dir: {cfg.paths.demultiplex_dir}")
+    print(f"  data_dir: {cfg.paths.data_dir}")
+    print(f"  output_dir: {cfg.paths.output_dir or '(not set)'}")
+    print(f"  plots_dir: {cfg.paths.plots_dir or '(not set)'}")
+
+    print("\n[FASTQ]")
+    print(f"  read1_pattern: {cfg.fastq.read1_pattern}")
+    print(f"  read2_pattern: {cfg.fastq.read2_pattern}")
+
+    print("\n[Sequence]")
+    seq = cfg.sequence.reference_sequence
+    if len(seq) > 50:
+        print(f"  reference_sequence: {seq[:50]}... ({len(seq)} bp)")
+    else:
+        print(f"  reference_sequence: {seq}")
+    print(f"  construct_filter: {cfg.sequence.construct_filter}")
+    print(f"  target_position: {cfg.sequence.target_position}")
+
+    print("\n[Mutation]")
+    print(f"  mutation_count_filter: {cfg.mutation.mutation_count_filter}")
+    print(f"  min_info_count: {cfg.mutation.min_info_count}")
+    print(f"  min_data_points: {cfg.mutation.min_data_points}")
+
+    print("\n[Fitting]")
+    print(f"  n_bootstrap: {cfg.fitting.n_bootstrap}")
+    print(f"  random_seed: {cfg.fitting.random_seed}")
+    print(f"  max_iterations: {cfg.fitting.max_iterations}")
+    print(f"  initial_y_max: {cfg.fitting.initial_y_max}")
+    print(f"  initial_k: {cfg.fitting.initial_k}")
+
+    print("\n[Output]")
+    print(f"  mutation_fractions_file: {cfg.output.mutation_fractions_file}")
+    print(f"  kinetics_file: {cfg.output.kinetics_file}")
+    print(f"  generate_plots: {cfg.output.generate_plots}")
+
+    print("\n[SLURM]")
+    print(f"  enabled: {cfg.slurm.enabled}")
+    if cfg.slurm.enabled:
+        print(f"  time: {cfg.slurm.time}")
+        print(f"  memory: {cfg.slurm.memory}")
+        print(f"  cpus: {cfg.slurm.cpus}")
+        print(f"  job_name_prefix: {cfg.slurm.job_name_prefix}")
+        print(f"  email: {cfg.slurm.email or '(not set)'}")
+        print(f"  email_type: {cfg.slurm.email_type}")
+
+    print("=" * 60)
 
 
 # Import and register SLURM commands (must be at bottom to avoid circular imports)
