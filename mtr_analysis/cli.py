@@ -102,13 +102,20 @@ def _extract_summary(construct: str, time: int, construct_dir: str) -> dict:
 
 @run.command("single-rna-map")
 @click.argument("barcode_seq")
-def run_single_rna_map(barcode_seq: str) -> None:
+@click.option("--config", "-c", "config_file", type=click.Path(exists=True), help="Config file path")
+def run_single_rna_map(barcode_seq: str, config_file: str | None) -> None:
     """
     Run RNA-MaP for a single barcode.
 
     BARCODE_SEQ: Barcode sequence identifier.
     """
-    run_rna_map_for_barcode(barcode_seq)
+    cfg = None
+    if config_file:
+        try:
+            cfg = load_config(config_file)
+        except (ConfigError, FileNotFoundError) as e:
+            raise click.ClickException(f"Config error: {e}")
+    run_rna_map_for_barcode(barcode_seq, cfg)
     print(f"Completed RNA-MaP for barcode: {barcode_seq}")
 
 
@@ -155,22 +162,50 @@ def _save_combined_results(dfs: list) -> None:
 
 @run.command("process-dir")
 @click.argument("dir_path")
-@click.option("--sequence", default=DEFAULT_SEQUENCE, help="Reference sequence")
-def process_single_dir(dir_path: str, sequence: str) -> None:
+@click.option("--sequence", default=None, help="Reference sequence")
+@click.option("--config", "-c", "config_file", type=click.Path(exists=True), help="Config file path")
+def process_single_dir(dir_path: str, sequence: str | None, config_file: str | None) -> None:
     """
     Process mutations for a single directory.
 
     DIR_PATH: Path to directory containing RNA-MaP output.
     """
+    # Get sequence from config if not provided
+    if sequence is None:
+        if config_file:
+            try:
+                cfg = load_config(config_file)
+                sequence = cfg.sequence.reference_sequence
+            except (ConfigError, FileNotFoundError) as e:
+                raise click.ClickException(f"Config error: {e}")
+        else:
+            sequence = DEFAULT_SEQUENCE
     _process_directory(dir_path, sequence)
     print(f"Processed: {dir_path}")
 
 
 @run.command("aggregate")
-@click.option("--output", default="all_mut_fractions.csv", help="Output file path")
-@click.option("--data-dir", default="data", help="Data directory containing constructs")
-def aggregate_mutations(output: str, data_dir: str) -> None:
+@click.option("--output", default=None, help="Output file path")
+@click.option("--data-dir", default=None, help="Data directory containing constructs")
+@click.option("--config", "-c", "config_file", type=click.Path(exists=True), help="Config file path")
+def aggregate_mutations(output: str | None, data_dir: str | None, config_file: str | None) -> None:
     """Aggregate mutation fractions from all data directories."""
+    # Get values from config if not provided
+    if config_file:
+        try:
+            cfg = load_config(config_file)
+            if output is None:
+                output = cfg.output.mutation_fractions_file
+            if data_dir is None:
+                data_dir = str(cfg.paths.data_dir)
+        except (ConfigError, FileNotFoundError) as e:
+            raise click.ClickException(f"Config error: {e}")
+    # Apply defaults if still not set
+    if output is None:
+        output = "all_mut_fractions.csv"
+    if data_dir is None:
+        data_dir = "data"
+
     dirs = glob.glob(f"{data_dir}/*")
     dfs = []
     for dir_path in dirs:
@@ -188,14 +223,40 @@ def aggregate_mutations(output: str, data_dir: str) -> None:
 
 
 @run.command("fit")
-@click.option("--min-info-count", type=int, default=1000, help="Minimum read count")
-@click.option("--plot", is_flag=True, help="Generate plots")
-@click.option("--input-file", default="all_mut_fractions.csv", help="Input CSV")
-@click.option("--output-file", default="mut_kinetics.csv", help="Output CSV")
+@click.option("--min-info-count", type=int, default=None, help="Minimum read count")
+@click.option("--plot", is_flag=True, default=None, help="Generate plots")
+@click.option("--input-file", default=None, help="Input CSV")
+@click.option("--output-file", default=None, help="Output CSV")
+@click.option("--config", "-c", "config_file", type=click.Path(exists=True), help="Config file path")
 def fit_mut_fractions(
-    min_info_count: int, plot: bool, input_file: str, output_file: str
+    min_info_count: int | None, plot: bool | None, input_file: str | None,
+    output_file: str | None, config_file: str | None
 ) -> None:
     """Fit monoexponential curves to mutation fraction data."""
+    # Get values from config if not provided
+    if config_file:
+        try:
+            cfg = load_config(config_file)
+            if min_info_count is None:
+                min_info_count = cfg.mutation.min_info_count
+            if plot is None:
+                plot = cfg.output.generate_plots
+            if input_file is None:
+                input_file = cfg.output.mutation_fractions_file
+            if output_file is None:
+                output_file = cfg.output.kinetics_file
+        except (ConfigError, FileNotFoundError) as e:
+            raise click.ClickException(f"Config error: {e}")
+    # Apply defaults if still not set
+    if min_info_count is None:
+        min_info_count = 1000
+    if plot is None:
+        plot = False
+    if input_file is None:
+        input_file = "all_mut_fractions.csv"
+    if output_file is None:
+        output_file = "mut_kinetics.csv"
+
     if plot:
         os.makedirs("plots", exist_ok=True)
     df = _load_and_filter_fractions(input_file, min_info_count)

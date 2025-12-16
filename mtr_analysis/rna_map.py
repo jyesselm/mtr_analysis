@@ -5,11 +5,17 @@ This module handles running the rna-map tool for processing
 sequencing data from RNA structure probing experiments.
 """
 
+from __future__ import annotations
+
 import subprocess
 from contextlib import ExitStack
 from dataclasses import dataclass
 from importlib.resources import as_file, files
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mtr_analysis.config import Config
 
 
 @dataclass
@@ -80,12 +86,15 @@ def run_rna_map(
     return subprocess.run(cmd, check=check)
 
 
-def run_rna_map_for_barcode(barcode_seq: str) -> subprocess.CompletedProcess:
+def run_rna_map_for_barcode(
+    barcode_seq: str, cfg: Config | None = None
+) -> subprocess.CompletedProcess:
     """
     Run RNA-MaP for a specific barcode using default resources.
 
     Args:
         barcode_seq: Barcode sequence identifier.
+        cfg: Optional Config object with paths. If None, uses defaults.
 
     Returns:
         Completed process result.
@@ -96,11 +105,21 @@ def run_rna_map_for_barcode(barcode_seq: str) -> subprocess.CompletedProcess:
         dotb = stack.enter_context(as_file(data_files.joinpath("C01HP.csv")))
         fa = stack.enter_context(as_file(data_files.joinpath("C01HP.fasta")))
 
+        # Use paths from config if provided, otherwise use defaults
+        if cfg is not None:
+            demux_dir = cfg.paths.demultiplex_dir
+            read1_pattern = cfg.fastq.read1_pattern
+            read2_pattern = cfg.fastq.read2_pattern
+        else:
+            demux_dir = Path("demultiplexed")
+            read1_pattern = "test_R1.fastq.gz"
+            read2_pattern = "test_R2.fastq.gz"
+
         config = RnaMapConfig(
             params_file=Path(params),
             dotbracket_file=Path(dotb),
             fasta_file=Path(fa),
-            fastq1=Path(f"demultiplexed/{barcode_seq}/test_R2.fastq.gz"),
-            fastq2=Path(f"demultiplexed/{barcode_seq}/test_R1.fastq.gz"),
+            fastq1=demux_dir / barcode_seq / read2_pattern,
+            fastq2=demux_dir / barcode_seq / read1_pattern,
         )
         return run_rna_map(config)

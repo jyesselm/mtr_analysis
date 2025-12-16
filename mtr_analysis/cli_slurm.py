@@ -91,7 +91,7 @@ def setup_rna_map(
     cfg = _load_config_file(config_file)
     slurm_config = _build_slurm_config(time, memory, extra_commands, cfg, stage="rna_map")
     df = _load_constructs(data_csv)
-    script_paths = _generate_rna_map_scripts(df, output_dir, script_dir, slurm_config)
+    script_paths = _generate_rna_map_scripts(df, output_dir, script_dir, slurm_config, config_file)
     _write_submit_file(script_paths, script_dir, "rna_map", 1)
     _handle_job_submission(script_paths, script_dir, dry_run, submit)
 
@@ -151,7 +151,8 @@ def _load_constructs(data_csv: str) -> pd.DataFrame:
 
 
 def _generate_rna_map_scripts(
-    df: pd.DataFrame, output_dir: str, script_dir: str, config: SlurmConfig
+    df: pd.DataFrame, output_dir: str, script_dir: str, config: SlurmConfig,
+    config_file: str | None = None
 ) -> list:
     """Generate SLURM scripts for each construct."""
     script_path = Path(script_dir)
@@ -166,6 +167,7 @@ def _generate_rna_map_scripts(
             barcode_seq=row["barcode_seq"],
             output_dir=output_dir,
             config=config,
+            config_file=config_file,
         )
         path = job.write_script(script_path)
         scripts.append(path)
@@ -217,13 +219,13 @@ def setup_mutations(
     if not dirs:
         print("No data directories found.")
         return
-    script_paths = _generate_mutation_scripts(dirs, script_dir, slurm_config)
+    script_paths = _generate_mutation_scripts(dirs, script_dir, slurm_config, config_file)
     _write_submit_file(script_paths, script_dir, "mutations", 2)
     _handle_job_submission(script_paths, script_dir, dry_run, submit)
 
 
 def _generate_mutation_scripts(
-    dirs: list, script_dir: str, config: SlurmConfig
+    dirs: list, script_dir: str, config: SlurmConfig, config_file: str | None = None
 ) -> list:
     """Generate SLURM scripts for mutation analysis."""
     script_path = Path(script_dir)
@@ -233,7 +235,7 @@ def _generate_mutation_scripts(
 
     scripts = []
     for dir_path in dirs:
-        job = create_mutation_job(data_dir=dir_path, sequence="", config=config)
+        job = create_mutation_job(data_dir=dir_path, sequence="", config=config, config_file=config_file)
         path = job.write_script(script_path)
         scripts.append(path)
         print(f"Generated: {path}")
@@ -268,7 +270,7 @@ def setup_aggregation(
     cfg = _load_config_file(config_file)
     slurm_config = _build_slurm_config(time, memory, extra_commands, cfg, stage="aggregation")
     dirs = glob.glob(f"{data_dir}/*")
-    job = create_aggregation_job(data_dirs=dirs, output_file=output, data_dir=data_dir, config=slurm_config)
+    job = create_aggregation_job(data_dirs=dirs, output_file=output, data_dir=data_dir, config=slurm_config, config_file=config_file)
     script_path = Path(script_dir)
     script_path.mkdir(parents=True, exist_ok=True)
     slurm_config.output_dir = script_path / "logs"
@@ -312,6 +314,7 @@ def setup_fitting(
         min_info_count=min_info_count,
         generate_plots=plot,
         config=slurm_config,
+        config_file=config_file,
     )
     script_path = Path(script_dir)
     script_path.mkdir(parents=True, exist_ok=True)
@@ -363,7 +366,7 @@ def setup_full_pipeline(
     # Generate all scripts
     df = _load_constructs(data_csv)
     all_scripts = _generate_full_pipeline_scripts(
-        df, output_dir, script_path, log_dir, min_info_count, plot, extra_commands, cfg
+        df, output_dir, script_path, log_dir, min_info_count, plot, extra_commands, cfg, config_file
     )
 
     # Generate README_SUBMIT files for each stage
@@ -388,6 +391,7 @@ def _generate_full_pipeline_scripts(
     plot: bool,
     extra_commands: str | None = None,
     cfg: Config | None = None,
+    config_file: str | None = None,
 ) -> dict[str, list[Path]]:
     """Generate all scripts for full pipeline."""
     scripts: dict[str, list[Path]] = {
@@ -413,24 +417,24 @@ def _generate_full_pipeline_scripts(
     # RNA-MaP jobs
     for _, row in df.iterrows():
         job = create_rna_map_job(
-            row["construct"], row["barcode_seq"], output_dir, rna_slurm
+            row["construct"], row["barcode_seq"], output_dir, rna_slurm, config_file
         )
         scripts["rna_map"].append(job.write_script(script_path))
 
     # Mutation jobs
     for _, row in df.iterrows():
         dir_path = f"{output_dir}/{row['construct']}"
-        job = create_mutation_job(dir_path, "", mut_slurm)
+        job = create_mutation_job(dir_path, "", mut_slurm, config_file)
         scripts["mutations"].append(job.write_script(script_path))
 
     # Aggregation job
     dirs = [f"{output_dir}/{row['construct']}" for _, row in df.iterrows()]
-    job = create_aggregation_job(dirs, "all_mut_fractions.csv", output_dir, agg_slurm)
+    job = create_aggregation_job(dirs, "all_mut_fractions.csv", output_dir, agg_slurm, config_file)
     scripts["aggregation"].append(job.write_script(script_path))
 
     # Fitting job
     job = create_fitting_job(
-        "all_mut_fractions.csv", "mut_kinetics.csv", min_info_count, plot, fit_slurm
+        "all_mut_fractions.csv", "mut_kinetics.csv", min_info_count, plot, fit_slurm, config_file
     )
     scripts["fitting"].append(job.write_script(script_path))
 
