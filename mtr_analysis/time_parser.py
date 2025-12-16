@@ -89,7 +89,7 @@ def _parse_bare_time(base_name: str) -> int | None:
     Returns:
         Time in minutes, or None if pattern not found.
     """
-    match = re.search(r"_t(\d+)$", base_name)
+    match = re.search(r"_t(\d+)(?:_|$)", base_name)
     if not match:
         return None
     return int(match.group(1))
