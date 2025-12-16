@@ -10,6 +10,13 @@ from pathlib import Path
 from mtr_analysis.slurm.job import SlurmConfig, SlurmJob
 
 
+def _get_absolute_path(path: str | None) -> str | None:
+    """Convert a path to absolute path if provided."""
+    if path is None:
+        return None
+    return str(Path(path).resolve())
+
+
 def create_rna_map_job(
     construct: str,
     barcode_seq: str,
@@ -32,7 +39,10 @@ def create_rna_map_job(
     """
     if config is None:
         config = SlurmConfig(time="02:00:00", memory="8G")
-    commands = _build_rna_map_commands(construct, barcode_seq, output_dir, config_file)
+    # Convert paths to absolute
+    abs_output_dir = _get_absolute_path(output_dir)
+    abs_config_file = _get_absolute_path(config_file)
+    commands = _build_rna_map_commands(construct, barcode_seq, abs_output_dir, abs_config_file)
     return SlurmJob(name=f"rna_map_{construct}", commands=commands, config=config)
 
 
@@ -45,10 +55,17 @@ def _build_rna_map_commands(
     if config_file:
         cmd += f" --config {config_file}"
 
+    # Create a unique run directory for this job to avoid file collisions
+    run_dir = f"{output_dir}/run/{construct}"
+
     return [
         f"# Process construct: {construct}",
         "",
-        "# Clean up any previous run",
+        "# Create unique run directory to avoid file collisions",
+        f"mkdir -p {run_dir}",
+        f"cd {run_dir}",
+        "",
+        "# Clean up any previous run in this directory",
         "rm -rf log output input",
         "",
         "# Create output directory",
@@ -60,7 +77,7 @@ def _build_rna_map_commands(
         "# Move results",
         f"mv output {output_dir}/{construct}/",
         "",
-        'echo "Completed processing {construct}"',
+        f'echo "Completed processing {construct}"',
     ]
 
 
@@ -84,8 +101,11 @@ def create_mutation_job(
     """
     if config is None:
         config = SlurmConfig(time="00:30:00", memory="4G")
+    # Convert paths to absolute
+    abs_data_dir = _get_absolute_path(data_dir)
+    abs_config_file = _get_absolute_path(config_file)
     dir_name = Path(data_dir).name
-    commands = _build_mutation_commands(data_dir, config_file)
+    commands = _build_mutation_commands(abs_data_dir, abs_config_file)
     return SlurmJob(name=f"mutations_{dir_name}", commands=commands, config=config)
 
 
@@ -126,16 +146,21 @@ def create_aggregation_job(
     """
     if config is None:
         config = SlurmConfig(time="00:15:00", memory="2G")
-    cmd = f"mtr-analysis run aggregate --output {output_file} --data-dir {data_dir}"
-    if config_file:
-        cmd += f" --config {config_file}"
+    # Convert paths to absolute
+    abs_data_dir = _get_absolute_path(data_dir)
+    abs_output_file = _get_absolute_path(output_file)
+    abs_config_file = _get_absolute_path(config_file)
+
+    cmd = f"mtr-analysis run aggregate --output {abs_output_file} --data-dir {abs_data_dir}"
+    if abs_config_file:
+        cmd += f" --config {abs_config_file}"
 
     commands = [
         "# Aggregate mutation fractions",
         "",
         cmd,
         "",
-        f'echo "Aggregation complete: {output_file}"',
+        f'echo "Aggregation complete: {abs_output_file}"',
     ]
     return SlurmJob(name="aggregate_mutations", commands=commands, config=config)
 
@@ -164,11 +189,14 @@ def create_fitting_job(
     """
     if config is None:
         config = SlurmConfig(time="00:30:00", memory="4G")
+    # Convert paths to absolute
+    abs_config_file = _get_absolute_path(config_file)
+
     cmd = f"mtr-analysis run fit --min-info-count {min_info_count}"
     if generate_plots:
         cmd += " --plot"
-    if config_file:
-        cmd += f" --config {config_file}"
+    if abs_config_file:
+        cmd += f" --config {abs_config_file}"
     commands = [
         "# Fit mutation kinetics",
         "",

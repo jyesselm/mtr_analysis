@@ -441,10 +441,13 @@ def _parse_config(data: dict[str, Any]) -> Config:
 
     # Build SLURM config
     slurm_data = data.get("slurm", {})
+    # Get base time and memory - these are used as fallbacks for stage-specific values
+    base_time = slurm_data.get("time", "01:00:00")
+    base_memory = slurm_data.get("memory", "4G")
     slurm_config = SlurmConfig(
         enabled=slurm_data.get("enabled", False),
-        time=slurm_data.get("time", "01:00:00"),
-        memory=slurm_data.get("memory", "4G"),
+        time=base_time,
+        memory=base_memory,
         cpus=slurm_data.get("cpus", 1),
         job_name_prefix=slurm_data.get("job_name_prefix", "mtr"),
         email=slurm_data.get("email"),
@@ -456,14 +459,15 @@ def _parse_config(data: dict[str, Any]) -> Config:
         if slurm_data.get("log_dir")
         else None,
         extra_commands=slurm_data.get("extra_commands"),
-        rna_map_time=slurm_data.get("rna_map_time", "02:00:00"),
-        rna_map_memory=slurm_data.get("rna_map_memory", "8G"),
-        mutations_time=slurm_data.get("mutations_time", "00:30:00"),
-        mutations_memory=slurm_data.get("mutations_memory", "4G"),
-        aggregation_time=slurm_data.get("aggregation_time", "00:15:00"),
-        aggregation_memory=slurm_data.get("aggregation_memory", "2G"),
-        fitting_time=slurm_data.get("fitting_time", "00:30:00"),
-        fitting_memory=slurm_data.get("fitting_memory", "4G"),
+        # Stage-specific times fall back to base_time if not specified
+        rna_map_time=slurm_data.get("rna_map_time", base_time),
+        rna_map_memory=slurm_data.get("rna_map_memory", base_memory),
+        mutations_time=slurm_data.get("mutations_time", base_time),
+        mutations_memory=slurm_data.get("mutations_memory", base_memory),
+        aggregation_time=slurm_data.get("aggregation_time", base_time),
+        aggregation_memory=slurm_data.get("aggregation_memory", base_memory),
+        fitting_time=slurm_data.get("fitting_time", base_time),
+        fitting_memory=slurm_data.get("fitting_memory", base_memory),
     )
 
     # Create and validate config
