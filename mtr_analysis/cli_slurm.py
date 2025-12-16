@@ -56,6 +56,7 @@ def slurm() -> None:
 @click.option("--script-dir", default="slurm_scripts", help="Script output directory")
 @click.option("--time", default="02:00:00", help="Time limit per job")
 @click.option("--memory", default="8G", help="Memory per job")
+@click.option("--extra-commands", default=None, help="Extra commands to run (e.g., module load)")
 @click.option("--dry-run", is_flag=True, help="Generate scripts without submitting")
 @click.option("--submit", is_flag=True, help="Submit jobs after generating")
 def setup_rna_map(
@@ -64,6 +65,7 @@ def setup_rna_map(
     script_dir: str,
     time: str,
     memory: str,
+    extra_commands: str | None,
     dry_run: bool,
     submit: bool,
 ) -> None:
@@ -72,16 +74,18 @@ def setup_rna_map(
 
     Creates one job per construct, allowing parallel processing.
     """
-    config = _build_slurm_config(time, memory)
+    config = _build_slurm_config(time, memory, extra_commands)
     df = _load_constructs(data_csv)
     script_paths = _generate_rna_map_scripts(df, output_dir, script_dir, config)
     _write_submit_file(script_paths, script_dir, "rna_map", 1)
     _handle_job_submission(script_paths, script_dir, dry_run, submit)
 
 
-def _build_slurm_config(time: str, memory: str) -> SlurmConfig:
+def _build_slurm_config(
+    time: str, memory: str, extra_commands: str | None = None
+) -> SlurmConfig:
     """Build SLURM configuration from CLI options."""
-    return SlurmConfig(time=time, memory=memory)
+    return SlurmConfig(time=time, memory=memory, extra_commands=extra_commands)
 
 
 def _load_constructs(data_csv: str) -> pd.DataFrame:
@@ -133,6 +137,7 @@ def _handle_job_submission(
 @click.option("--script-dir", default="slurm_scripts", help="Script output directory")
 @click.option("--time", default="00:30:00", help="Time limit per job")
 @click.option("--memory", default="4G", help="Memory per job")
+@click.option("--extra-commands", default=None, help="Extra commands to run (e.g., module load)")
 @click.option("--dry-run", is_flag=True, help="Generate scripts without submitting")
 @click.option("--submit", is_flag=True, help="Submit jobs after generating")
 def setup_mutations(
@@ -140,6 +145,7 @@ def setup_mutations(
     script_dir: str,
     time: str,
     memory: str,
+    extra_commands: str | None,
     dry_run: bool,
     submit: bool,
 ) -> None:
@@ -148,7 +154,7 @@ def setup_mutations(
 
     Creates one job per data directory.
     """
-    config = _build_slurm_config(time, memory)
+    config = _build_slurm_config(time, memory, extra_commands)
     dirs = glob.glob(f"{data_dir}/*")
     if not dirs:
         print("No data directories found.")
@@ -182,6 +188,7 @@ def _generate_mutation_scripts(
 @click.option("--time", default="00:15:00", help="Time limit")
 @click.option("--memory", default="2G", help="Memory")
 @click.option("--output", default="all_mut_fractions.csv", help="Output file")
+@click.option("--extra-commands", default=None, help="Extra commands to run (e.g., module load)")
 @click.option("--dry-run", is_flag=True, help="Preview without submitting")
 @click.option("--submit", is_flag=True, help="Submit job")
 def setup_aggregation(
@@ -190,11 +197,12 @@ def setup_aggregation(
     time: str,
     memory: str,
     output: str,
+    extra_commands: str | None,
     dry_run: bool,
     submit: bool,
 ) -> None:
     """Generate SLURM job for aggregating mutation results."""
-    config = _build_slurm_config(time, memory)
+    config = _build_slurm_config(time, memory, extra_commands)
     dirs = glob.glob(f"{data_dir}/*")
     job = create_aggregation_job(data_dirs=dirs, output_file=output, data_dir=data_dir, config=config)
     script_path = Path(script_dir)
@@ -213,6 +221,7 @@ def setup_aggregation(
 @click.option("--memory", default="4G", help="Memory")
 @click.option("--min-info-count", default=1000, help="Minimum read count filter")
 @click.option("--plot", is_flag=True, help="Generate plots")
+@click.option("--extra-commands", default=None, help="Extra commands to run (e.g., module load)")
 @click.option("--dry-run", is_flag=True, help="Preview without submitting")
 @click.option("--submit", is_flag=True, help="Submit job")
 def setup_fitting(
@@ -221,11 +230,12 @@ def setup_fitting(
     memory: str,
     min_info_count: int,
     plot: bool,
+    extra_commands: str | None,
     dry_run: bool,
     submit: bool,
 ) -> None:
     """Generate SLURM job for curve fitting."""
-    config = _build_slurm_config(time, memory)
+    config = _build_slurm_config(time, memory, extra_commands)
     job = create_fitting_job(
         input_file="all_mut_fractions.csv",
         output_file="mut_kinetics.csv",
@@ -249,6 +259,7 @@ def setup_fitting(
 @click.option("--script-dir", default="slurm_scripts", help="Script output directory")
 @click.option("--min-info-count", default=1000, help="Minimum read count filter")
 @click.option("--plot", is_flag=True, help="Generate plots")
+@click.option("--extra-commands", default=None, help="Extra commands to run (e.g., module load)")
 @click.option("--dry-run", is_flag=True, help="Preview without submitting")
 @click.option("--submit", is_flag=True, help="Submit all jobs")
 def setup_full_pipeline(
@@ -257,6 +268,7 @@ def setup_full_pipeline(
     script_dir: str,
     min_info_count: int,
     plot: bool,
+    extra_commands: str | None,
     dry_run: bool,
     submit: bool,
 ) -> None:
@@ -277,7 +289,7 @@ def setup_full_pipeline(
     # Generate all scripts
     df = _load_constructs(data_csv)
     all_scripts = _generate_full_pipeline_scripts(
-        df, output_dir, script_path, log_dir, min_info_count, plot
+        df, output_dir, script_path, log_dir, min_info_count, plot, extra_commands
     )
 
     # Generate README_SUBMIT files for each stage
@@ -300,6 +312,7 @@ def _generate_full_pipeline_scripts(
     log_dir: Path,
     min_info_count: int,
     plot: bool,
+    extra_commands: str | None = None,
 ) -> dict[str, list[Path]]:
     """Generate all scripts for full pipeline."""
     scripts: dict[str, list[Path]] = {
@@ -310,7 +323,9 @@ def _generate_full_pipeline_scripts(
     }
 
     # RNA-MaP jobs
-    rna_config = SlurmConfig(time="02:00:00", memory="8G", output_dir=log_dir)
+    rna_config = SlurmConfig(
+        time="02:00:00", memory="8G", output_dir=log_dir, extra_commands=extra_commands
+    )
     for _, row in df.iterrows():
         job = create_rna_map_job(
             row["construct"], row["barcode_seq"], output_dir, rna_config
@@ -318,20 +333,26 @@ def _generate_full_pipeline_scripts(
         scripts["rna_map"].append(job.write_script(script_path))
 
     # Mutation jobs
-    mut_config = SlurmConfig(time="00:30:00", memory="4G", output_dir=log_dir)
+    mut_config = SlurmConfig(
+        time="00:30:00", memory="4G", output_dir=log_dir, extra_commands=extra_commands
+    )
     for _, row in df.iterrows():
         dir_path = f"{output_dir}/{row['construct']}"
         job = create_mutation_job(dir_path, "", mut_config)
         scripts["mutations"].append(job.write_script(script_path))
 
     # Aggregation job
-    agg_config = SlurmConfig(time="00:15:00", memory="2G", output_dir=log_dir)
+    agg_config = SlurmConfig(
+        time="00:15:00", memory="2G", output_dir=log_dir, extra_commands=extra_commands
+    )
     dirs = [f"{output_dir}/{row['construct']}" for _, row in df.iterrows()]
     job = create_aggregation_job(dirs, "all_mut_fractions.csv", output_dir, agg_config)
     scripts["aggregation"].append(job.write_script(script_path))
 
     # Fitting job
-    fit_config = SlurmConfig(time="00:30:00", memory="4G", output_dir=log_dir)
+    fit_config = SlurmConfig(
+        time="00:30:00", memory="4G", output_dir=log_dir, extra_commands=extra_commands
+    )
     job = create_fitting_job(
         "all_mut_fractions.csv", "mut_kinetics.csv", min_info_count, plot, fit_config
     )

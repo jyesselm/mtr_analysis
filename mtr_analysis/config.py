@@ -178,6 +178,9 @@ class SlurmConfig:
     script_dir: Path | None = None
     log_dir: Path | None = None
 
+    # Extra commands to run at the beginning of each job (e.g., module load, conda activate)
+    extra_commands: str | None = None
+
     # Stage-specific time overrides
     rna_map_time: str = "02:00:00"
     rna_map_memory: str = "8G"
@@ -452,6 +455,7 @@ def _parse_config(data: dict[str, Any]) -> Config:
         log_dir=_expand_path(slurm_data["log_dir"])
         if slurm_data.get("log_dir")
         else None,
+        extra_commands=slurm_data.get("extra_commands"),
         rna_map_time=slurm_data.get("rna_map_time", "02:00:00"),
         rna_map_memory=slurm_data.get("rna_map_memory", "8G"),
         mutations_time=slurm_data.get("mutations_time", "00:30:00"),
@@ -608,6 +612,13 @@ slurm:
 
   # Directory for SLURM logs (optional, must be absolute if specified)
   # log_dir: /path/to/slurm_logs
+
+  # Extra commands to run at the start of each SLURM job
+  # Use this for environment setup like module loads and conda activation
+  # Commands are separated by newlines in the YAML string
+  # extra_commands: |
+  #   module load anaconda3
+  #   conda activate mtr_env
 
   # Stage-specific resource allocations
   rna_map_time: "02:00:00"

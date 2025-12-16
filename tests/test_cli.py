@@ -170,27 +170,33 @@ class TestDefaultSequence:
 class TestCliCommands:
     """Tests for CLI commands (integration-style)."""
 
+    def test_run_group_exists(self, cli_runner: CliRunner) -> None:
+        """Test that run command group is available."""
+        result = cli_runner.invoke(cli, ["run", "--help"])
+        assert result.exit_code == 0
+        assert "Pipeline step commands" in result.output
+
     def test_run_single_rna_map_help(self, cli_runner: CliRunner) -> None:
-        """Test run-single-rna-map help."""
-        result = cli_runner.invoke(cli, ["run-single-rna-map", "--help"])
+        """Test run single-rna-map help."""
+        result = cli_runner.invoke(cli, ["run", "single-rna-map", "--help"])
         assert result.exit_code == 0
         assert "BARCODE_SEQ" in result.output
 
     def test_get_mutation_fractions_no_data(self, cli_runner: CliRunner) -> None:
-        """Test get-mutation-fractions with no data directories."""
+        """Test run get-mutations with no data directories."""
         with cli_runner.isolated_filesystem():
-            result = cli_runner.invoke(cli, ["get-mutation-fractions"])
+            result = cli_runner.invoke(cli, ["run", "get-mutations"])
             assert "No data directories found" in result.output
 
     def test_process_single_dir_help(self, cli_runner: CliRunner) -> None:
-        """Test process-single-dir help."""
-        result = cli_runner.invoke(cli, ["process-single-dir", "--help"])
+        """Test run process-dir help."""
+        result = cli_runner.invoke(cli, ["run", "process-dir", "--help"])
         assert result.exit_code == 0
         assert "DIR_PATH" in result.output
 
     def test_fit_mut_fractions_help(self, cli_runner: CliRunner) -> None:
-        """Test fit-mut-fractions help."""
-        result = cli_runner.invoke(cli, ["fit-mut-fractions", "--help"])
+        """Test run fit help."""
+        result = cli_runner.invoke(cli, ["run", "fit", "--help"])
         assert result.exit_code == 0
         assert "--min-info-count" in result.output
         assert "--plot" in result.output

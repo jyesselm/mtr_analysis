@@ -133,14 +133,14 @@ class TestSaveKineticsResults:
 
 
 class TestAggregateMutations:
-    """Tests for aggregate-mutations command."""
+    """Tests for run aggregate command."""
 
     def test_no_files(self, cli_runner: CliRunner) -> None:
         """Test with no mutation fraction files."""
         with cli_runner.isolated_filesystem():
             Path("data").mkdir()
             Path("data/sample1").mkdir()
-            result = cli_runner.invoke(cli, ["aggregate-mutations"])
+            result = cli_runner.invoke(cli, ["run", "aggregate"])
             assert "No mutation fraction files found" in result.output
 
     def test_aggregates_files(self, cli_runner: CliRunner) -> None:
@@ -155,18 +155,18 @@ class TestAggregateMutations:
             df1.to_csv("data/sample_t15min/mut_fractions.csv", index=False)
             df2.to_csv("data/sample_t30min/mut_fractions.csv", index=False)
 
-            result = cli_runner.invoke(cli, ["aggregate-mutations"])
+            result = cli_runner.invoke(cli, ["run", "aggregate"])
             assert "Aggregated 2 files" in result.output
 
 
 class TestFitMutFractions:
-    """Tests for fit-mut-fractions command."""
+    """Tests for run fit command."""
 
     def test_file_not_found(self, cli_runner: CliRunner) -> None:
         """Test with missing input file."""
         with cli_runner.isolated_filesystem():
             result = cli_runner.invoke(
-                cli, ["fit-mut-fractions", "--input-file", "nonexistent.csv"]
+                cli, ["run", "fit", "--input-file", "nonexistent.csv"]
             )
             assert result.exit_code != 0
 
@@ -186,7 +186,7 @@ class TestFitMutFractions:
             )
             df.to_csv("all_mut_fractions.csv", index=False)
 
-            result = cli_runner.invoke(cli, ["fit-mut-fractions"])
+            result = cli_runner.invoke(cli, ["run", "fit"])
             assert result.exit_code == 0 or "Saved kinetics results" in result.output
 
 

@@ -32,7 +32,13 @@ def cli() -> None:
     pass
 
 
-@cli.command()
+@cli.group()
+def run() -> None:
+    """Pipeline step commands for running analysis."""
+    pass
+
+
+@run.command("rna-map")
 @click.argument("data_csv", type=click.Path(exists=True))
 @click.option("--data-dir", default="data", help="Output directory for data")
 def run_rna_map(data_csv: str, data_dir: str) -> None:
@@ -94,7 +100,7 @@ def _extract_summary(construct: str, time: int, construct_dir: str) -> dict:
     }
 
 
-@cli.command()
+@run.command("single-rna-map")
 @click.argument("barcode_seq")
 def run_single_rna_map(barcode_seq: str) -> None:
     """
@@ -106,7 +112,7 @@ def run_single_rna_map(barcode_seq: str) -> None:
     print(f"Completed RNA-MaP for barcode: {barcode_seq}")
 
 
-@cli.command()
+@run.command("get-mutations")
 @click.option("--sequence", default=DEFAULT_SEQUENCE, help="Reference sequence")
 @click.option("--data-dir", default="data", help="Data directory containing constructs")
 def get_mutation_fractions(sequence: str, data_dir: str) -> None:
@@ -147,7 +153,7 @@ def _save_combined_results(dfs: list) -> None:
     print("Saved combined results to all_mut_fractions.csv")
 
 
-@cli.command()
+@run.command("process-dir")
 @click.argument("dir_path")
 @click.option("--sequence", default=DEFAULT_SEQUENCE, help="Reference sequence")
 def process_single_dir(dir_path: str, sequence: str) -> None:
@@ -160,7 +166,7 @@ def process_single_dir(dir_path: str, sequence: str) -> None:
     print(f"Processed: {dir_path}")
 
 
-@cli.command()
+@run.command("aggregate")
 @click.option("--output", default="all_mut_fractions.csv", help="Output file path")
 @click.option("--data-dir", default="data", help="Data directory containing constructs")
 def aggregate_mutations(output: str, data_dir: str) -> None:
@@ -181,7 +187,7 @@ def aggregate_mutations(output: str, data_dir: str) -> None:
         print("No mutation fraction files found.")
 
 
-@cli.command()
+@run.command("fit")
 @click.option("--min-info-count", type=int, default=1000, help="Minimum read count")
 @click.option("--plot", is_flag=True, help="Generate plots")
 @click.option("--input-file", default="all_mut_fractions.csv", help="Input CSV")

@@ -63,6 +63,26 @@ class TestBuildSlurmConfig:
         assert config.memory == "4G"
         assert config.cpus == 1
 
+    def test_config_with_extra_commands(self) -> None:
+        """Test building config with extra_commands."""
+        config = _build_slurm_config(
+            time="01:00:00",
+            memory="4G",
+            extra_commands="module load anaconda3\nconda activate mtr_env",
+        )
+
+        assert config.extra_commands == "module load anaconda3\nconda activate mtr_env"
+
+    def test_config_without_extra_commands(self) -> None:
+        """Test building config without extra_commands (None)."""
+        config = _build_slurm_config(
+            time="01:00:00",
+            memory="4G",
+            extra_commands=None,
+        )
+
+        assert config.extra_commands is None
+
 
 class TestLoadConstructs:
     """Tests for _load_constructs function."""
@@ -95,6 +115,7 @@ class TestSetupRnaMapCommand:
         assert "DATA_CSV" in result.output
         assert "--time" in result.output
         assert "--dry-run" in result.output
+        assert "--extra-commands" in result.output
 
     def test_generates_scripts(self, cli_runner: CliRunner, temp_dir: Path) -> None:
         """Test that scripts are generated."""

@@ -20,6 +20,7 @@ class SlurmConfig:
     job_name_prefix: str = "mtr"
     email: str | None = None
     email_type: str = "FAIL"
+    extra_commands: str | None = None
 
 
 @dataclass
@@ -61,7 +62,7 @@ class SlurmJob:
 
     def _generate_environment(self) -> list[str]:
         """Generate environment setup commands."""
-        return [
+        lines = [
             "",
             "# Exit on error",
             "set -e",
@@ -71,6 +72,15 @@ class SlurmJob:
             'echo "Running on node: $(hostname)"',
             "",
         ]
+        # Add extra commands if provided (e.g., module load, conda activate)
+        if self.config.extra_commands:
+            lines.append("# Environment setup")
+            for cmd in self.config.extra_commands.strip().split("\n"):
+                cmd = cmd.strip()
+                if cmd:
+                    lines.append(cmd)
+            lines.append("")
+        return lines
 
     def write_script(self, output_dir: Path) -> Path:
         """

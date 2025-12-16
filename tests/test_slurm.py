@@ -21,6 +21,7 @@ class TestSlurmConfig:
         assert config.time == "01:00:00"
         assert config.memory == "4G"
         assert config.cpus == 1
+        assert config.extra_commands is None
 
     def test_custom_values(self) -> None:
         """Test custom configuration values."""
@@ -32,6 +33,13 @@ class TestSlurmConfig:
         assert config.time == "04:00:00"
         assert config.memory == "16G"
         assert config.cpus == 4
+
+    def test_extra_commands(self) -> None:
+        """Test extra_commands configuration."""
+        config = SlurmConfig(
+            extra_commands="module load anaconda3\nconda activate mtr_env",
+        )
+        assert config.extra_commands == "module load anaconda3\nconda activate mtr_env"
 
 
 class TestSlurmJob:
@@ -61,6 +69,29 @@ class TestSlurmJob:
 
         assert "#SBATCH --mail-user=user@example.com" in script
         assert "#SBATCH --mail-type=ALL" in script
+
+    def test_generate_script_with_extra_commands(self) -> None:
+        """Test that extra_commands are included in script."""
+        config = SlurmConfig(
+            extra_commands="module load anaconda3\nconda activate mtr_env"
+        )
+        job = SlurmJob(name="test", commands=["echo 'test'"], config=config)
+
+        script = job.generate_script()
+
+        assert "# Environment setup" in script
+        assert "module load anaconda3" in script
+        assert "conda activate mtr_env" in script
+
+    def test_generate_script_without_extra_commands(self) -> None:
+        """Test that script works without extra_commands."""
+        config = SlurmConfig()
+        job = SlurmJob(name="test", commands=["echo 'test'"], config=config)
+
+        script = job.generate_script()
+
+        assert "# Environment setup" not in script
+        assert "echo 'test'" in script
 
     def test_write_script(self, temp_dir: Path) -> None:
         """Test writing script to file."""
@@ -186,6 +217,25 @@ class TestSlurmTemplates:
         assert "rna_map_test_construct" in job.name
         script = job.generate_script()
         assert "test_construct" in script
+        # Verify new command structure
+        assert "mtr-analysis run single-rna-map" in script
+
+    def test_create_rna_map_job_with_extra_commands(self) -> None:
+        """Test creating RNA-MaP job with extra_commands."""
+        config = SlurmConfig(
+            time="02:00:00",
+            memory="8G",
+            extra_commands="module load anaconda3",
+        )
+        job = create_rna_map_job(
+            construct="test_construct",
+            barcode_seq="ACGT",
+            output_dir="data",
+            config=config,
+        )
+
+        script = job.generate_script()
+        assert "module load anaconda3" in script
 
     def test_create_mutation_job(self) -> None:
         """Test creating mutation analysis job."""
@@ -197,6 +247,8 @@ class TestSlurmTemplates:
         assert "mutations_" in job.name
         script = job.generate_script()
         assert "data/test_dir" in script
+        # Verify new command structure
+        assert "mtr-analysis run process-dir" in script
 
     def test_create_aggregation_job(self) -> None:
         """Test creating aggregation job."""
@@ -208,6 +260,8 @@ class TestSlurmTemplates:
         assert "aggregate" in job.name
         script = job.generate_script()
         assert "results.csv" in script
+        # Verify new command structure
+        assert "mtr-analysis run aggregate" in script
 
     def test_create_fitting_job(self) -> None:
         """Test creating fitting job."""
@@ -222,6 +276,8 @@ class TestSlurmTemplates:
         script = job.generate_script()
         assert "--min-info-count 500" in script
         assert "--plot" in script
+        # Verify new command structure
+        assert "mtr-analysis run fit" in script
 
     def test_fitting_job_without_plots(self) -> None:
         """Test creating fitting job without plots."""

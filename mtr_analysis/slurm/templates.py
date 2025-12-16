@@ -48,7 +48,7 @@ def _build_rna_map_commands(
         f"mkdir -p {output_dir}/{construct}",
         "",
         "# Run RNA-MaP",
-        f"mtr-analysis run-single-rna-map {barcode_seq}",
+        f"mtr-analysis run single-rna-map {barcode_seq}",
         "",
         "# Move results",
         f"mv output {output_dir}/{construct}/",
@@ -85,7 +85,7 @@ def _build_mutation_commands(data_dir: str) -> list[str]:
     return [
         f"# Analyze mutations in: {data_dir}",
         "",
-        f"mtr-analysis process-single-dir {data_dir}",
+        f"mtr-analysis run process-dir {data_dir}",
         "",
         f'echo "Completed mutation analysis for {data_dir}"',
     ]
@@ -114,7 +114,7 @@ def create_aggregation_job(
     commands = [
         "# Aggregate mutation fractions",
         "",
-        f"mtr-analysis aggregate-mutations --output {output_file} --data-dir {data_dir}",
+        f"mtr-analysis run aggregate --output {output_file} --data-dir {data_dir}",
         "",
         f'echo "Aggregation complete: {output_file}"',
     ]
@@ -143,7 +143,7 @@ def create_fitting_job(
     """
     if config is None:
         config = SlurmConfig(time="00:30:00", memory="4G")
-    cmd = f"mtr-analysis fit-mut-fractions --min-info-count {min_info_count}"
+    cmd = f"mtr-analysis run fit --min-info-count {min_info_count}"
     if generate_plots:
         cmd += " --plot"
     commands = [
