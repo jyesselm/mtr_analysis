@@ -57,7 +57,7 @@ class TestReadBitvectorLines:
         test_file = temp_dir / "test.txt"
         test_file.write_text(content)
 
-        lines = _read_bitvector_lines(test_file)
+        lines = list(_read_bitvector_lines(test_file))
 
         assert len(lines) == 2
         assert lines[0] == "data1"

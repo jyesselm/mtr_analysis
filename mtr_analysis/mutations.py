@@ -6,6 +6,7 @@ files and computing mutation statistics.
 """
 
 from collections import defaultdict
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -38,28 +39,34 @@ def process_mutations(sequence: str, path: Path | str) -> MutationResult:
     return _analyze_mutations(sequence, lines)
 
 
-def _read_bitvector_lines(path: Path | str) -> list[str]:
+def _read_bitvector_lines(path: Path | str) -> Iterator[str]:
     """
     Read and preprocess bitvector file lines.
+
+    Yields lines one at a time to avoid loading entire file into memory.
 
     Args:
         path: Path to the bitvector file.
 
-    Returns:
-        List of data lines (header lines removed).
+    Yields:
+        Data lines (header lines skipped).
     """
     with open(path) as f:
-        lines = [line.strip() for line in f]
-    return lines[3:]  # Skip header lines
+        # Skip first 3 header lines
+        for _ in range(3):
+            next(f, None)
+        # Yield remaining lines one at a time
+        for line in f:
+            yield line.strip()
 
 
-def _analyze_mutations(sequence: str, lines: list[str]) -> MutationResult:
+def _analyze_mutations(sequence: str, lines: Iterator[str]) -> MutationResult:
     """
     Analyze mutation data from bitvector lines.
 
     Args:
         sequence: Reference RNA sequence.
-        lines: Preprocessed bitvector data lines.
+        lines: Iterator of preprocessed bitvector data lines.
 
     Returns:
         MutationResult with computed statistics.
